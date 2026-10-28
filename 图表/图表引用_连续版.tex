@@ -1,0 +1,55 @@
+% 需要在导言区加载：\usepackage{graphicx,booktabs,float}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{图表/fig_continuous_pareto_front.pdf}
+  \caption{连续坐标版两种算法的三目标最终解集与合并经验 Pareto 前沿。}
+  \label{fig:continuous-pareto}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.84\textwidth]{图表/fig_continuous_convergence_hv.pdf}
+  \caption{连续坐标版 HV 收敛过程。曲线为 5 次运行均值，阴影为均值$\pm$1倍标准差。}
+  \label{fig:continuous-convergence}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{图表/fig_continuous_metric_distribution.pdf}
+  \caption{连续坐标版 5 个随机种子下 HV、IGD 和 Spacing 的配对对比。}
+  \label{fig:continuous-metrics}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.90\textwidth]{图表/fig_continuous_runtime.pdf}
+  \caption{连续坐标版的运行时间和最终档案规模。}
+  \label{fig:continuous-runtime}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.90\textwidth]{图表/fig_continuous_layouts.pdf}
+  \caption{连续坐标版两种算法代表性折中解的 100 台风机布局。}
+  \label{fig:continuous-layouts}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{图表/fig_representation_effect.pdf}
+  \caption{离散候选点表示和连续坐标表示下，NSGA2 相对 CCGDE3 的指标改善率。}
+  \label{fig:representation-effect}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{图表/fig_continuous_repair_diagnostics.pdf}
+  \caption{连续布局修复器诊断：网格兜底使用率与修复总移动距离分布。}
+  \label{fig:continuous-repair}
+\end{figure}
+
+\clearpage
+\input{图表/TABLE_continuous_algorithm_comparison.tex}
+\input{图表/TABLE_continuous_representative_solutions.tex}
+

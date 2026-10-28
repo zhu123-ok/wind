@@ -1,0 +1,17 @@
+\begin{table}[H]
+\centering
+\caption{基于全局归一化理想点距离选取的代表性折中解}
+\label{tab:representative-solutions}
+\begin{tabular}{lccrrrr}
+\toprule
+算法 & 运行序号 & 随机种子 & AEP/(GWh/年) & LCOE & CVaR95/\% & 经验前沿贡献 \\
+\midrule
+CCGDE3 & 4 & 4 & 404.50 & 0.023157 & 6.62 & 22（17.74\%） \\
+NSGA2  & 2 & 2 & 409.11 & 0.023112 & 4.61 & 102（82.26\%） \\
+\bottomrule
+\end{tabular}
+\begin{minipage}{0.94\textwidth}
+\footnotesize 注：三个目标先使用合并经验前沿的理想点和最差点归一化，再从各算法全部最终档案解中选择到理想点欧氏距离最小的解。
+\end{minipage}
+\end{table}
+

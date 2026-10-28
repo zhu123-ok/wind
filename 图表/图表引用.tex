@@ -1,0 +1,43 @@
+% 需要在导言区加载：\usepackage{graphicx,booktabs,float}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.86\textwidth]{图表/fig_pareto_front.pdf}
+  \caption{两种算法的三目标最终解集与合并经验 Pareto 前沿。浅色点为所有最终档案解，实色点为合并后的非支配解。}
+  \label{fig:pareto-front}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\textwidth]{图表/fig_convergence_hv.pdf}
+  \caption{HV 随目标函数评价次数的收敛过程。实线为 5 次运行的均值，阴影为均值$\pm$1 倍标准差。}
+  \label{fig:convergence-hv}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{图表/fig_metric_distribution.pdf}
+  \caption{5 个相同随机种子下 HV、IGD 和 Spacing 的配对对比。连线表示同一随机种子，空心大点表示均值。}
+  \label{fig:metric-distribution}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{图表/fig_runtime.pdf}
+  \caption{两种算法的运行时间与最终档案解数配对对比。}
+  \label{fig:runtime}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{图表/fig_layouts.pdf}
+  \caption{两种算法代表性折中解的 100 台风机空间布局。}
+  \label{fig:representative-layouts}
+\end{figure}
+
+\input{图表/TABLE_algorithm_comparison.tex}
+\input{图表/TABLE_representative_solutions.tex}
+
+% 连续坐标版新增图表
+\input{图表/图表引用_连续版.tex}
+

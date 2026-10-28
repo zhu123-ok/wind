@@ -1,0 +1,21 @@
+\begin{table}[H]
+\centering
+\caption{两种算法的综合性能对比（5 个配对随机种子）}
+\label{tab:algorithm-comparison}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+指标 & CCGDE3（均值$\pm$标准差） & NSGA2（均值$\pm$标准差） & NSGA2 改善幅度 & 配对胜场 & 单侧符号检验 $p$ \\
+\midrule
+HV（$\uparrow$）       & $0.5450\pm0.0447$ & $0.9018\pm0.0986$ & $+65.48\%$ & $5/5$ & 0.03125 \\
+IGD（$\downarrow$）    & $0.3790\pm0.0335$ & $0.2091\pm0.0363$ & $-44.83\%$ & $5/5$ & 0.03125 \\
+Spacing（$\downarrow$）& $0.02621\pm0.00382$ & $0.00590\pm0.00105$ & $-77.50\%$ & $5/5$ & 0.03125 \\
+运行时间/s（$\downarrow$） & $73.09\pm3.79$ & $61.79\pm6.17$ & $-15.46\%$ & $5/5$ & 0.03125 \\
+档案解数 & $74.6\pm10.9$ & $83.8\pm14.8$ & $+12.33\%$ & -- & -- \\
+\bottomrule
+\end{tabular}}
+\begin{minipage}{0.96\textwidth}
+\footnotesize 注：$\uparrow$ 表示越大越好，$\downarrow$ 表示越小越好。单侧检验的备择假设是 NSGA2 更优；由于 $n=5$，对应的双侧精确 $p=0.0625$。档案解数仅描述输出规模，不单独代表解质量。
+\end{minipage}
+\end{table}
+

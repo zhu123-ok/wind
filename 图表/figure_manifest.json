@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "figures": [
+    {"path":"图表/fig_pareto_front.pdf","claim":"离散表示下 NSGA2 覆盖了主要高 AEP、低 CVaR95 权衡区域。","source":"WindFLO-master/MATLAB/project/results_large_scale/summary.json","reader_task":"比较离散版三目标前沿。","publish":true,"placement":"离散实验—Pareto 前沿"},
+    {"path":"图表/fig_convergence_hv.pdf","claim":"离散表示下 NSGA2 在中后期反超 CCGDE3。","source":"图表/analysis_data.json","reader_task":"读取离散版收敛速度。","publish":true,"placement":"离散实验—收敛性"},
+    {"path":"图表/fig_metric_distribution.pdf","claim":"离散表示下 NSGA2 在 5 个配对种子上的方向一致。","source":"图表/analysis_data.json","reader_task":"检查离散版配对方向。","publish":true,"placement":"离散实验—综合指标"},
+    {"path":"图表/fig_runtime.pdf","claim":"离散表示下 NSGA2 平均运行时间更短。","source":"图表/analysis_data.json","reader_task":"评估离散版计算代价。","publish":true,"placement":"离散实验—计算效率"},
+    {"path":"图表/fig_layouts.pdf","claim":"离散表示下两种算法的代表布局存在空间形态差异。","source":"图表/analysis_data.json","reader_task":"比较离散版折中布局。","publish":true,"placement":"离散实验—代表布局"},
+    {"path":"图表/fig_continuous_pareto_front.pdf","claim":"连续表示下 CCGDE3 贡献 106 个合并前沿解中的 68 个。","source":"WindFLO-master/MATLAB/project/results_continuous/summary.json","reader_task":"比较连续版前沿覆盖与极值。","publish":true,"placement":"连续实验—Pareto 前沿"},
+    {"path":"图表/fig_continuous_convergence_hv.pdf","claim":"连续表示下 CCGDE3 的平均 HV 在整个 FE 区间内高于 NSGA2。","source":"图表/continuous_analysis_data.json","reader_task":"读取连续版收敛速度和波动。","publish":true,"placement":"连续实验—收敛性"},
+    {"path":"图表/fig_continuous_metric_distribution.pdf","claim":"连续版的平均优势存在，但 5 个种子的配对方向不完全一致。","source":"图表/continuous_analysis_data.json","reader_task":"识别均值优势是否由少数运行驱动。","publish":true,"placement":"连续实验—配对指标"},
+    {"path":"图表/fig_continuous_runtime.pdf","claim":"连续表示下 NSGA2 平均节省 25.41% 运行时间。","source":"图表/continuous_analysis_data.json","reader_task":"对比计算代价和档案规模。","publish":true,"placement":"连续实验—计算效率"},
+    {"path":"图表/fig_continuous_layouts.pdf","claim":"NSGA2 代表解更偏向高 AEP 和低 CVaR，CCGDE3 更偏向低 LCOE。","source":"图表/continuous_analysis_data.json","reader_task":"比较连续版折中解的目标和布局。","publish":true,"placement":"连续实验—代表布局"},
+    {"path":"图表/fig_representation_effect.pdf","claim":"换为连续坐标后，HV 和 IGD 的算法相对排名反转。","source":"图表/analysis_data.json; 图表/continuous_analysis_data.json","reader_task":"比较两种表示下的相对改善方向。","publish":true,"placement":"离散—连续对比"},
+    {"path":"图表/fig_continuous_repair_diagnostics.pdf","claim":"CCGDE3 更频繁地触发网格兜底，且修复移动更大。","source":"WindFLO-master/MATLAB/project/results_continuous/repair_summary.json","reader_task":"评估修复器对算法结果的介入程度。","publish":true,"placement":"连续实验—修复诊断"},
+    {"path":"图表/TABLE_algorithm_comparison.tex","claim":"汇总离散表示下的主要指标。","source":"图表/analysis_data.json","reader_task":"获取离散版可引用数值。","publish":true,"placement":"离散实验—主表"},
+    {"path":"图表/TABLE_representative_solutions.tex","claim":"汇总离散表示下的代表折中解。","source":"图表/analysis_data.json","reader_task":"获取离散版工程数值。","publish":true,"placement":"离散实验—代表解表"},
+    {"path":"图表/TABLE_continuous_algorithm_comparison.tex","claim":"汇总连续坐标版的 HV、IGD、Spacing 和运行时间。","source":"图表/continuous_analysis_data.json","reader_task":"获取连续版可引用数值。","publish":true,"placement":"连续实验—主表"},
+    {"path":"图表/TABLE_continuous_representative_solutions.tex","claim":"汇总连续坐标版的代表折中解。","source":"图表/continuous_analysis_data.json","reader_task":"获取连续版工程数值。","publish":true,"placement":"连续实验—代表解表"}
+  ]
+}

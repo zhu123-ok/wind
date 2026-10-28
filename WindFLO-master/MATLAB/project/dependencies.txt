@@ -1,0 +1,4 @@
+MATLAB R2021b 或更高版本
+基础 MATLAB：必需
+Parallel Computing Toolbox：可选，仅 useParallel=true 时使用
+不依赖 PlatEMO、Statistics and Machine Learning Toolbox 或第三方 XML 工具
