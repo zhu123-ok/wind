@@ -1,4 +1,4 @@
-function [layout,feasible,info] = windflo_repair_layout(layout,model,options)
+function [layout,feasible,info] = windflo_repair_layout(layout,model,options,movableMask)
 % WINDFLO_REPAIR_LAYOUT 确定性修复场界、障碍物和 8R 最小间距（第 9 步）。
 %
 % 修复分三级，尽量保留原始坐标信息：
@@ -7,20 +7,15 @@ function [layout,feasible,info] = windflo_repair_layout(layout,model,options)
 %   3) 兜底：若仍有冲突，按间距 8R*gridFactor 的网格从近到远为冲突风机
 %      找可行点；只要网格点足够容纳 N 台风机，就能得到可行布局。
 %
-% 确定性：相同输入必得相同输出；两个点完全重合时，分离方向由风机编号
-% 的哈希角决定，不使用随机数。这样同一布局的缓存键和实验结果可复现。
-%
-% info 字段：
-%   iterations        实际执行的排斥轮数
-%   fallbackCount     使用网格兜底的风机数
-%   movement          所有风机相对原始坐标的移动距离之和（m）
-%   minimumDistance   修复后的最小风机间距（m）
-%   boundaryViolation 越界距离之和
-%   obstacleViolation 落在障碍物内的风机数
-%   totalViolation    上述违规量之和
-%   feasible          是否完全满足约束
+% 增加了 movableMask 支持（适配 CCGDE3 分组协同进化）：
+%   movableMask 为逻辑数组，true 表示该风机允许移动，false 表示固定不动。
+%   如果未传入 movableMask，则默认所有风机都可移动。
 
 if nargin < 3, options = struct(); end
+if nargin < 4 || isempty(movableMask)
+    movableMask = true(size(layout,1),1);
+end
+
 maxIterations = get_option(options,'maxIterations',60);
 tolerance = get_option(options,'tolerance',1e-6);
 gridFactor = get_option(options,'gridFactor',1.05);
@@ -28,7 +23,7 @@ minDistance = 8*model.R;
 original = layout;                    % 保存原始坐标，用于统计移动量
 
 % ---- 第一级：场界与障碍物投影 ----
-layout = project_bounds_and_obstacles(layout,model);
+layout = project_bounds_and_obstacles(layout,model,movableMask);
 
 % ---- 第二级：成对排斥 ----
 iterations = 0;
@@ -40,6 +35,11 @@ for iter = 1:maxIterations
             delta = layout(i,:)-layout(j,:);
             distance = norm(delta);
             if distance < minDistance-tolerance
+                % 如果两个风机都不能动，跳过不处理（保留违规，让评价器罚分）
+                if ~movableMask(i) && ~movableMask(j)
+                    continue;
+                end
+                
                 % 完全重合时 norm 为 0，无法从连线得到方向，
                 % 用编号哈希生成一个确定性的分离方向。
                 if distance < tolerance
@@ -48,16 +48,28 @@ for iter = 1:maxIterations
                 else
                     direction = delta/distance;
                 end
-                % 各退一半重叠量，使间距刚好达到 8R（略留 tolerance）。
-                shift = 0.5*(minDistance-distance+tolerance);
-                layout(i,:) = layout(i,:)+shift*direction;
-                layout(j,:) = layout(j,:)-shift*direction;
+                
+                overlap = minDistance - distance + tolerance;
+                
+                % 根据 movableMask 分配推开量
+                if movableMask(i) && movableMask(j)
+                    % 都能动，各退一半
+                    shift = 0.5 * overlap;
+                    layout(i,:) = layout(i,:) + shift * direction;
+                    layout(j,:) = layout(j,:) - shift * direction;
+                elseif movableMask(i) && ~movableMask(j)
+                    % 只有 i 能动，i 承担全部推开量
+                    layout(i,:) = layout(i,:) + overlap * direction;
+                elseif ~movableMask(i) && movableMask(j)
+                    % 只有 j 能动，j 承担全部推开量
+                    layout(j,:) = layout(j,:) - overlap * direction;
+                end
                 moved = true;
             end
         end
     end
-    % 推开后可能越界或进入障碍物，每轮都要重新投影。
-    layout = project_bounds_and_obstacles(layout,model);
+    % 推开后可能越界或进入障碍物，每轮都要重新投影（只处理可移动的）
+    layout = project_bounds_and_obstacles(layout,model,movableMask);
     if ~moved || minimum_distance(layout) >= minDistance-tolerance
         break;
     end
@@ -66,7 +78,7 @@ end
 % ---- 第三级：仍有冲突时用网格兜底 ----
 fallbackCount = 0;
 if ~windflo_check_layout(layout,model)
-    [layout,fallbackCount] = sequential_fallback(layout,model,minDistance,gridFactor);
+    [layout,fallbackCount] = sequential_fallback(layout,model,minDistance,gridFactor,movableMask);
 end
 
 % ---- 汇总修复统计 ----
@@ -84,14 +96,20 @@ info = struct('iterations',iterations,'fallbackCount',fallbackCount, ...
     'feasible',feasible);
 end
 
-function layout = project_bounds_and_obstacles(layout,model)
+function layout = project_bounds_and_obstacles(layout,model,movableMask)
 % PROJECT_BOUNDS_AND_OBSTACLES 把坐标压回场区，并把障碍物内的点推到最近边界。
-% 障碍物是轴对齐矩形，边界上的点视为合法（判断用严格不等号）。
-layout(:,1) = min(model.width,max(0,layout(:,1)));
-layout(:,2) = min(model.height,max(0,layout(:,2)));
+% 仅对 movableMask 为 true 的风机进行移动。
+movableIdx = find(movableMask);
+
+% 处理边界
+layout(movableIdx,1) = min(model.width,max(0,layout(movableIdx,1)));
+layout(movableIdx,2) = min(model.height,max(0,layout(movableIdx,2)));
+
+% 处理障碍物
 for k = 1:size(model.obstacles,1)
     o = model.obstacles(k,:);        % [xmin ymin xmax ymax]
-    for i = 1:size(layout,1)
+    for idx = 1:length(movableIdx)
+        i = movableIdx(idx);
         p = layout(i,:);
         if p(1) > o(1) && p(1) < o(3) && p(2) > o(2) && p(2) < o(4)
             % 比较到四条边的距离，移到最近的一条边上。
@@ -108,12 +126,9 @@ for k = 1:size(model.obstacles,1)
 end
 end
 
-function [layout,fallbackCount] = sequential_fallback(layout,model,minDistance,gridFactor)
+function [layout,fallbackCount] = sequential_fallback(layout,model,minDistance,gridFactor,movableMask)
 % SEQUENTIAL_FALLBACK 按顺序放置风机：能保留原点就保留，否则从网格中
 % 选最近的、与已放置风机不冲突的可行点。
-%
-% 网格间距 = 8R*gridFactor > 8R，因此网格点之间天然满足间距约束；
-% 只要场区能容纳 N 台风机，逐个放置就不会失败。
 step = minDistance*gridFactor;
 [gx,gy] = meshgrid(0:step:model.width,0:step:model.height);
 grid = [gx(:),gy(:)];
@@ -131,12 +146,22 @@ placedCount = 0;
 for i = 1:size(layout,1)
     p = layout(i,:);
     oldPoints = placed(1:placedCount,:);
+    
+    % 如果当前点合法，直接保留
     if is_valid_point(p,oldPoints,model,minDistance)
         placedCount = placedCount+1;
         placed(placedCount,:) = p;
         continue;
     end
-    % 冲突：按距离从近到远找第一个可行网格点。
+    
+    % 如果当前点冲突，但它是“固定点”（不允许移动），强制保留原位
+    if ~movableMask(i)
+        placedCount = placedCount+1;
+        placed(placedCount,:) = p;
+        continue;
+    end
+    
+    % 冲突且可移动：按距离从近到远找第一个可行网格点。
     distance = sum((grid-p).^2,2);
     [~,order] = sort(distance,'ascend');
     found = false;
