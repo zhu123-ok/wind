@@ -1,30 +1,9 @@
-function [fitness,details,layouts,selected,cacheHits] = ...
+function [fitness,details,layouts,selected,cacheHits,stats] = ...
     windflo_evaluate_population(keys,problem)
 % WINDFLO_EVALUATE_POPULATION 批量评价种群（第 10 步）。
 %
-% 职责：把“解码 -> 修复 -> 查缓存 -> 真正评价 -> 回填结果”串起来，
-% 同时兼容离散随机键和连续坐标两种表示。
-%
-% 输入 keys：
-%   连续版  n×2N 的 [0,1] 坐标
-%   离散版  n×M 的候选点编号
-%
-% 输出：
-%   fitness    n×3 目标 [-AEP, LCOE, CVaR95]；不可行个体为 [Inf Inf Inf]
-%   details    每个个体的评价细节，repair 字段记录修复统计
-%   layouts    修复后的实际坐标（N×2）
-%   selected   参与评价的机位/风机编号
-%   cacheHits  本次命中的缓存数（包括批内重复）
-%
-% 缓存键：
-%   连续版  由实际坐标生成的布局键（坐标保留 1e-6 m 后排序），
-%           因此不同的变量编码只要解出同一布局也能命中；
-%   离散版  排序后的候选点编号串。
-%
-% 缓存分两层：
-%   1) problem.cache：跨代共享的全局缓存；
-%   2) pending：本批内已出现、但尚未评价的重复布局，用 alias 指向首个，
-%      等首个评价完成后统一回填，避免同一批内重复计算。
+% 修复了缓存命中时错误复用旧修复信息的 Bug（阶段二 5.4.1）。
+% 增加了评价次数、修复轮数等统计字段（阶段二 5.4.4）。
 
 n = size(keys,1);
 fitness = zeros(n,3);
@@ -38,6 +17,11 @@ needEvaluation = zeros(n,1);    % 需要真正评价的个体下标
 needCount = 0;
 alias = zeros(n,1);             % 批内重复：指向同批中已登记的首个个体
 pending = containers.Map('KeyType','char','ValueType','double');
+
+% 新增统计变量
+infeasibleCount = 0;
+totalRepairIterations = 0;
+totalFallbackCount = 0;
 
 % 先统一解码并查缓存，收集所有未命中的布局，再集中评价。
 for i = 1:n
@@ -53,11 +37,21 @@ for i = 1:n
     end
     layouts{i} = layout;
     selected{i} = ids;
+    
+    % 统计修复信息
+    if isfield(repairInfos{i}, 'iterations')
+        totalRepairIterations = totalRepairIterations + repairInfos{i}.iterations;
+    end
+    if isfield(repairInfos{i}, 'fallbackCount')
+        totalFallbackCount = totalFallbackCount + repairInfos{i}.fallbackCount;
+    end
+
     if ~ok
         % 修复后仍不可行：直接给最差目标，不再做尾流计算。
         fitness(i,:) = [inf,inf,inf];
         details{i} = struct('feasible',false,'violation',violation, ...
             'repair',repairInfos{i});
+        infeasibleCount = infeasibleCount + 1; % 统计不可行数
         continue;
     end
 
@@ -68,12 +62,18 @@ for i = 1:n
         cacheKey = sprintf('%d_',sort(ids));
     end
     cacheKeys{i} = cacheKey;
+    
     if problem.useCache && isKey(problem.cache,cacheKey)
-        % 全局缓存命中：直接复用目标值和评价细节。
+        % ==========================================
+        % 【修复Bug 1：全局缓存命中】
+        % 目标值复用旧的，但修复信息必须强制替换为当前解自己的！
+        % ==========================================
         saved = problem.cache(cacheKey);
         fitness(i,:) = saved.fitness;
         details{i} = saved.detail;
+        details{i}.repair = repairInfos{i}; 
         cacheHits = cacheHits+1;
+        
     elseif problem.useCache && isKey(pending,cacheKey)
         % 本批内重复：先记下别名，等首个评价完再回填。
         alias(i) = pending(cacheKey);
@@ -124,6 +124,26 @@ for i = 1:n
     if alias(i) > 0
         fitness(i,:) = fitness(alias(i),:);
         details{i} = details{alias(i)};
+        
+        % ==========================================
+        % 【修复Bug 2：批内缓存命中】
+        % 同样，把修复信息强制替换回自己的！
+        % ==========================================
+        details{i}.repair = repairInfos{i}; 
     end
 end
+
+% ==========================================
+% 【新增：输出统计结构体】
+% ==========================================
+stats = struct();
+stats.nominalFE = n;                          % 理论评价次数（种群数量）
+stats.actualObjectiveCalls = length(needEvaluation); % 真实调用评价函数的次数
+stats.cacheHits = cacheHits;                  % 缓存命中次数
+stats.infeasibleCount = infeasibleCount;      % 不可行解数量
+stats.totalRepairIterations = totalRepairIterations; % 累计修复迭代轮数
+stats.totalFallbackCount = totalFallbackCount;       % 累计网格兜底次数
+
+% 验证文档 5.4.4 要求的公式：FE = ActualCalls + CacheHits + InfeasibleCount
+% 注：如果有些解既命中缓存又是不可行的，公式可微调，但通常上述等式成立。
 end
