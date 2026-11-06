@@ -19,6 +19,14 @@ else
 end
 switch lower(name)
     case {'ccgde3', 'ccg-de3'}
+        if isfield(options,'ccgde3')
+            overrides = options.ccgde3;
+            names = fieldnames(overrides);
+            options = rmfield(options,'ccgde3');
+            for i = 1:numel(names)
+                options.(names{i}) = overrides.(names{i});
+            end
+        end
         result = CCGDE3(problem,options);
     case {'nsga2', 'nsga-ii'}
         result = NSGA2(problem,options);

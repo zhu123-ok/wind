@@ -62,6 +62,9 @@ while evaluations < maxFE
     details = poolD(keep); layouts = poolL(keep); selected = poolS(keep);
     archive = mo_update_archive(archive,pop,fitness,details,layouts,selected,archiveSize);
     history = record_history(history,evaluations,archive);
+    if isfield(options,'progressFcn')
+        options.progressFcn(archive,history,evaluations,cacheHits);
+    end
 
     if verbose && (generation == 1 || mod(generation,10) == 0)
         fprintf('NSGA-II generation %d, FE=%d, archive=%d\n', ...

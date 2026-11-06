@@ -1,133 +1,154 @@
 function result = CCGDE3(problem,options)
-% CCGDE3 协同进化广义差分进化（三目标），连续实验的主算法（第 6、7A、12 步）。
-%
-% 算法框架：
-%   1) 随机初始化 popSize 个 2N 维个体，立即评价并建立初始档案；
-%   2) 把决策变量分成 numGroups 组，每隔 regroupPeriod 代重新随机分组；
-%   3) 依次进化每一组：其余组固定为“协同上下文”，上下文个体从当前
-%      种群的非支配解中随机抽取，本组用 DE/rand/1/bin 产生新值；
-%   4) 子代评价后做 GDE3 预选择，再用非支配排序 + 拥挤距离截断；
-%   5) 每代把种群并入外部 Pareto 档案，直到评价预算用完。
-%
-% 连续版的特殊处理：
-%   分组以风机为单位，同一台风机的 x、y 必须落在同一组。否则坐标对
-%   被拆到不同组，协同上下文会把 x 和 y 拼成没有几何意义的组合。
-%
-% 输入 problem 需包含 dimension（2N）、model 等字段；options 可覆盖
-% popSize、maxFE、numGroups、regroupPeriod、mutationFactor、crossRate、
-% archiveSize 和 verbose。
-
+% CCGDE3 Independent species with cooperative context evaluation.
+% Each species owns its group components and its evaluated full solutions.
+% Context donors are frozen from each species' first front at cycle start.
+% popSize is the comparison population size; subPopSize defaults to 40%
+% of popSize (at least four). Paper defaults are 100 and 40, two groups,
+% F=CR=0.5, and fixed random variable grouping.
+% groupCoordinates=true binds wind turbine x/y pairs as an optional adaptation.
 if nargin < 2, options = struct(); end
-popSize = get_option(options,'popSize',80);
+popSize = get_option(options,'popSize',100);
+subPopSize = get_option(options,'subPopSize',max(4,round(0.4*popSize)));
 maxFE = get_option(options,'maxFE',10000);
-F = get_option(options,'mutationFactor',0.5);   % 差分缩放因子
-CR = get_option(options,'crossRate',0.9);       % 二项交叉概率
+F = get_option(options,'mutationFactor',0.5);
+CR = get_option(options,'crossRate',0.5);
 numGroups = get_option(options,'numGroups',2);
-regroupPeriod = get_option(options,'regroupPeriod',10);
+regroupPeriod = get_option(options,'regroupPeriod',0);
+groupCoordinates = get_option(options,'groupCoordinates',false);
 archiveSize = get_option(options,'archiveSize',100);
 verbose = get_option(options,'verbose',true);
-
-% 离散版维度是候选点数，连续版维度是 2N。
 if isfield(problem,'dimension')
     M = problem.dimension;
 else
     M = size(problem.candidates,1);
 end
-% 分组数必须能覆盖所有变量；连续版还要求不超过风机数，
-% 否则无法保证同一台机的 x、y 同组。
-if numGroups < 1 || numGroups > M
-    error('numGroups 必须在 1 到决策维度之间。');
+validateattributes(subPopSize,{'numeric'},{'scalar','integer','>=',4});
+validateattributes(numGroups,{'numeric'},{'scalar','integer','>=',1,'<=',M});
+validateattributes(maxFE,{'numeric'},{'scalar','integer','>=',numGroups*subPopSize});
+validateattributes(regroupPeriod,{'numeric'},{'scalar','integer','nonnegative'});
+validateattributes(F,{'numeric'},{'scalar','real','finite','nonnegative'});
+validateattributes(CR,{'numeric'},{'scalar','real','>=',0,'<=',1});
+if groupCoordinates && numGroups > problem.model.nTurbines
+    error('CCGDE3:Groups','Paired coordinate groups cannot exceed turbine count.');
 end
-if isfield(problem,'representation') && ...
-        strcmpi(problem.representation,'continuous') && ...
-        numGroups > problem.model.nTurbines
-    error('连续版 numGroups 不能超过风机数量。');
+groupId = make_groups(problem,M,numGroups,groupCoordinates);
+initial = rand(subPopSize,M);
+template = struct('keys',initial,'fitness',[],'details',{{}},'layouts',{{}},'selected',{{}});
+species = repmat(template,numGroups,1);
+archive = [];
+evaluations = 0;
+cacheHits = 0;
+% Initially, all other species donate random native components.
+donors = repmat({initial},numGroups,1);
+for g = 1:numGroups
+    keys = collaborate(initial,g,donors,groupId);
+    [fitness,details,layouts,selected,hits] = windflo_evaluate_population(keys,problem);
+    species(g) = struct('keys',keys,'fitness',fitness,'details',{details}, ...
+        'layouts',{layouts},'selected',{selected});
+    evaluations = evaluations+subPopSize;
+    cacheHits = cacheHits+hits;
+    archive = mo_update_archive(archive,keys,fitness,details,layouts,selected,archiveSize);
 end
-if popSize < 4, error('CCGDE3 的 popSize 至少为 4。'); end
-
-% ---- 第 6 步：初始化并立即评价 ----
-pop = rand(popSize,M);                          % 均匀分布在 [0,1]^M
-[fitness,details,layouts,selected,hits] = ...
-    windflo_evaluate_population(pop,problem);
-evaluations = popSize;                          % 已消耗的评价次数
-cacheHits = hits;
-archive = mo_update_archive([],pop,fitness,details,layouts,selected,archiveSize);
-history = make_history(maxFE,popSize);
+if isempty(archive)
+    error('CCGDE3:NoFeasibleSolution','No feasible evaluated solution during species initialization.');
+end
+history = make_history(maxFE,subPopSize);
 history = record_history(history,evaluations,archive);
 generation = 0;
-
 while evaluations < maxFE
     generation = generation+1;
-    % 第 1 代必分组；之后每 regroupPeriod 代重新分组。
-    if generation == 1 || mod(generation-1,regroupPeriod) == 0
-        groupId = make_groups(problem,M,numGroups);
+    if regroupPeriod > 0 && generation > 1 && mod(generation-1,regroupPeriod) == 0
+        groupId = make_groups(problem,M,numGroups,groupCoordinates);
     end
-
+    % Each donor pool belongs to a distinct species from the previous cycle.
+    for g = 1:numGroups
+        frontNo = mo_non_dominated_sort(species(g).fitness);
+        donors{g} = species(g).keys(frontNo == 1,:);
+    end
     for g = 1:numGroups
         if evaluations >= maxFE, break; end
-        vars = find(groupId == g);      % 本组要进化的变量下标
-        other = find(groupId ~= g);     % 其余变量：保持上下文值
-        frontNo = mo_non_dominated_sort(fitness);
-        nd = find(frontNo == 1);        % 当前非支配解，作为上下文供体
-        if isempty(nd), nd = (1:popSize)'; end
-
-        % 最后一代可能不足 popSize 个，按剩余预算截断。
-        nOffspring = min(popSize,maxFE-evaluations);
-        trial = pop(1:nOffspring,:);    % 以父代为底稿
-
-        % 第 7A 步之一：其他组由随机非支配个体提供协同上下文。
-        context = nd(randi(length(nd),nOffspring,1));
-        trial(:,other) = pop(context,other);
-
-        % 第 7A 步之二：本组执行 DE/rand/1/bin。
+        parent = species(g);
+        vars = find(groupId == g);
+        nOffspring = min(subPopSize,maxFE-evaluations);
+        trial = parent.keys(1:nOffspring,:);
         for i = 1:nOffspring
-            pool = randperm(popSize);
-            pool(pool == i) = [];       % 去掉自身，保证三个基向量互异
-            a = pop(pool(1),vars);
-            b = pop(pool(2),vars);
-            c = pop(pool(3),vars);
-            mutant = min(1,max(0,a+F*(b-c)));   % 变异并压回 [0,1]
-            mask = rand(1,length(vars)) < CR;   % 二项交叉掩码
-            mask(randi(length(vars))) = true;   % 至少保留一个变异分量
+            pool = randperm(subPopSize);
+            pool(pool == i) = [];
+            mutant = parent.keys(pool(1),vars) + ...
+                F*(parent.keys(pool(2),vars)-parent.keys(pool(3),vars));
+            mutant = min(1,max(0,mutant));
+            mask = rand(1,length(vars)) < CR;
+            mask(randi(length(vars))) = true;
             trial(i,vars(mask)) = mutant(mask);
         end
-
-        % 评价子代；命中缓存的部分不重复做尾流计算。
-        [trialF,trialD,trialL,trialS,hits] = ...
-            windflo_evaluate_population(trial,problem);
+        trial = collaborate(trial,g,donors,groupId);
+        [trialF,trialD,trialL,trialS,hits] = windflo_evaluate_population(trial,problem);
         evaluations = evaluations+nOffspring;
         cacheHits = cacheHits+hits;
-
-        % ---- 第 12 步：GDE3 预选择 + 环境选择 ----
-        % GDE3：父支配子留父；子支配父留子；互不支配时父子都进候选池。
         [poolX,poolF,poolD,poolL,poolS] = gde3_preselection( ...
-            pop,fitness,details,layouts,selected, ...
+            parent.keys,parent.fitness,parent.details,parent.layouts,parent.selected, ...
             trial,trialF,trialD,trialL,trialS,nOffspring);
-        keep = mo_environmental_selection(poolF,popSize);  % 截断回 popSize
-        pop = poolX(keep,:); fitness = poolF(keep,:);
-        details = poolD(keep); layouts = poolL(keep); selected = poolS(keep);
-        % 把改进解并入档案；档案内部会去重并只保留非支配解。
-        archive = mo_update_archive(archive,pop,fitness,details,layouts,selected,archiveSize);
+        keep = gde3_selection(poolF,subPopSize);
+        species(g) = struct('keys',poolX(keep,:),'fitness',poolF(keep,:), ...
+            'details',{poolD(keep)},'layouts',{poolL(keep)},'selected',{poolS(keep)});
+        archive = mo_update_archive(archive,species(g).keys,species(g).fitness, ...
+            species(g).details,species(g).layouts,species(g).selected,archiveSize);
         history = record_history(history,evaluations,archive);
+        if isfield(options,'progressFcn')
+            options.progressFcn(archive,history,evaluations,cacheHits);
+        end
     end
     if verbose && (generation == 1 || mod(generation,5) == 0)
-        fprintf('CCGDE3 generation %d, FE=%d, archive=%d\n', ...
-            generation,evaluations,size(archive.fitness,1));
+        fprintf('CCGDE3 cycle %d, FE=%d, species=%d, archive=%d\n', ...
+            generation,evaluations,numGroups,size(archive.fitness,1));
     end
 end
-
-% 选一个离归一化理想点最近的解，仅用于展示“折中代表解”。
 id = mo_representative(archive.fitness);
 result = pack_result('CCGDE3',archive,id,history,evaluations,cacheHits,generation);
 result.groups = numGroups;
+result.subpopulations = species;
+result.groupId = groupId;
+result.parameters = struct('framework','independent-species-v1', ...
+    'subPopSize',subPopSize,'numGroups',numGroups,'mutationFactor',F, ...
+    'crossRate',CR,'regroupPeriod',regroupPeriod,'groupCoordinates',groupCoordinates);
 end
 
-function groupId = make_groups(problem,M,numGroups)
+function keys = collaborate(keys,activeGroup,donors,groupId)
+% Native active-group components survive unchanged.
+for g = 1:numel(donors)
+    if g == activeGroup, continue; end
+    rows = randi(size(donors{g},1),size(keys,1),1);
+    keys(:,groupId == g) = donors{g}(rows,groupId == g);
+end
+end
+
+function ids = gde3_selection(fitness,nKeep)
+% Keep complete fronts, then prune the last front with recomputed distances.
+frontNo = mo_non_dominated_sort(fitness);
+ids = zeros(0,1);
+for f = 1:max(frontNo)
+    members = find(frontNo == f);
+    need = nKeep-numel(ids);
+    if numel(members) <= need
+        ids = [ids;members];
+    else
+        while numel(members) > need
+            distance = mo_crowding_distance(fitness(members,:),ones(numel(members),1));
+            [~,worst] = min(distance);
+            members(worst) = [];
+        end
+        ids = [ids;members];
+    end
+    if numel(ids) == nKeep, break; end
+end
+end
+
+function groupId = make_groups(problem,M,numGroups,groupCoordinates)
 % MAKE_GROUPS 随机分组：连续版按风机分组，离散版按候选变量分组。
 groupId = zeros(1,M);
 isContinuous = isfield(problem,'representation') && ...
     strcmpi(problem.representation,'continuous');
-if isContinuous
+if isContinuous && groupCoordinates
     % 连续版：先随机打乱风机顺序，再轮流分配组号；
     % 同一台机的 2i-1 和 2i 两个变量写入同一个组。
     nTurbines = problem.model.nTurbines;
@@ -153,7 +174,7 @@ function [X,F,D,L,S] = gde3_preselection(parent,parentF,parentD,parentL,parentS,
 %
 % 规则：
 %   父支配子 -> 只留父
-%   子支配父 -> 只留子
+%   子不劣于父（含等值） -> 只留子
 %   互不支配 -> 父、子都留（交给环境选择按拥挤距离截断）
 % 若子代数量少于父代（预算末尾），多出的父代直接保留。
 X = zeros(0,size(parent,2)); F = zeros(0,size(parentF,2));
@@ -164,7 +185,7 @@ for i = 1:size(parent,1)
         continue;
     end
     pDomC = all(parentF(i,:) <= childF(i,:)) && any(parentF(i,:) < childF(i,:));
-    cDomP = all(childF(i,:) <= parentF(i,:)) && any(childF(i,:) < parentF(i,:));
+    cDomP = all(childF(i,:) <= parentF(i,:));
     if pDomC
         take_parent();
     elseif cDomP

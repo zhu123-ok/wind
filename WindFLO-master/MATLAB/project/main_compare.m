@@ -5,10 +5,9 @@ here = fileparts(mfilename('fullpath'));
 scenarioFile = fullfile(here, '..', '..', 'Scenarios', '00.xml');
 addpath(here);
 
-% 演示规模故意较小，便于几分钟内检查完整调用链。
-nTurbines = 20;
+% 演示使用场景规定的风机台数，评价预算保持较小。
 candidateCount = 1200;
-model = windflo_model(scenarioFile, nTurbines);
+model = windflo_model(scenarioFile);
 candidates = windflo_make_candidates(model, candidateCount);
 problem = windflo_prepare_problem(model,candidates,true);
 

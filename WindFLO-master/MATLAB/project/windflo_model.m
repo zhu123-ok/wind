@@ -3,7 +3,7 @@ function model = windflo_model(scenarioFile, nTurbines)
 %
 % 输入：
 %   scenarioFile 场景 XML 路径（本项目为 Scenarios/00.xml）
-%   nTurbines    本次安装的风机台数 N，缺省为 8
+%   nTurbines    风机台数 N，省略或传入 [] 时读取 XML 的 NTurbines
 %
 % 输出 model 的主要字段：
 %   width/height  场区宽高（m）
@@ -12,18 +12,20 @@ function model = windflo_model(scenarioFile, nTurbines)
 %   R/CT/kw/...   风机、尾流和功率曲线参数
 %   cost          成本参数（示例值，可在外部整体替换）
 %
-% 说明：XML 只提供场区、障碍物和风况；风机、尾流、成本参数在这里补全，
+% 说明：XML 提供场区、风机台数、障碍物和风况；风机、尾流、成本参数在这里补全，
 % 后续解码、修复和评价都只依赖这个自包含的 model。
 
-if nargin < 2
-    nTurbines = 8;
-end
 if ~exist(scenarioFile, 'file')
     error('找不到场景文件：%s', scenarioFile);
 end
 
 % 用 Java DOM 解析 XML；后续按标签名取节点。
 doc = xmlread(scenarioFile);
+if nargin < 2 || isempty(nTurbines)
+    nTurbines = read_number(doc, 'NTurbines', NaN);
+end
+validateattributes(nTurbines, {'numeric'}, ...
+    {'scalar','real','finite','integer','positive'}, mfilename, 'nTurbines');
 model = struct();
 model.scenarioFile = scenarioFile;
 model.nTurbines = nTurbines;
