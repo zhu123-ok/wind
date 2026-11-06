@@ -152,3 +152,17 @@ result.cacheHits       重复布局缓存命中数
 ```
 
 多目标问题不存在唯一的“最佳解”。保留 `result.best` 只是为了兼容旧主程序，它与 `result.representative` 相同，不能把它解释成支配全部其他方案的唯一最优解。
+
+## CCGDE3 独立子种群框架（2026-11-04）
+
+每组现在维护独立子种群。每周期开始时从各子种群非支配层取得协作供体；子代与其他组的分量组合成完整解后计一次 FE。完整编码、目标及布局一起保存。各子种群分别进行 GDE3 父子选择，末层逐次删除拥挤距离最小的个体，每次删除后重新计算距离。
+
+默认比较种群规模为 100，子种群规模为比较种群的 40%（至少 4），因此默认两组各 40 个体。可通过 `subPopSize` 显式指定。默认 `numGroups=2`、`mutationFactor=0.5`、`crossRate=0.5`、`regroupPeriod=0`。初始化计入 `numGroups*subPopSize` FE，预算不足时直接报错，最后一批按剩余预算截断。
+
+默认将标量变量随机分组并保持分组。`groupCoordinates=true` 可以绑定同一风机的坐标对；正数 `regroupPeriod` 可以启用重新分组，均为可选工程设置。
+
+共享入口通过 `options.ccgde3` 覆盖 CCGDE3 专属参数，避免与 NSGA-II 的交叉参数混用。正式入口已设置每组 40 个体和两个固定分组。新输出目录含 `species_v1`，历史结果仍对应旧框架。
+
+返回结果新增 `subpopulations`、`groupId` 和 `parameters`，其中框架版本为 `independent-species-v1`。项目继续使用原有 DE/rand/1/bin、完整布局修复器和外部历史档案。框架验证通过后，仍需单独复现 ZDT 的真实前沿 95% HV 和多种子实验，才能评价与论文的性能一致性。
+
+验证入口为 `test_ccgde3_framework`、`test_project` 和 `test_continuous_project`。

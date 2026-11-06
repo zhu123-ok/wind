@@ -8,6 +8,7 @@ if ~isfield(config,'scenarioFile')
     config.scenarioFile = fullfile(here,'..','..','Scenarios','00.xml');
 end
 model = windflo_model(config.scenarioFile,config.nTurbines);
+config.nTurbines = model.nTurbines;
 candidates = windflo_make_candidates(model,config.candidateCount);
 baseProblem = windflo_prepare_problem(model,candidates,false);
 algorithms = {'CCGDE3','NSGA2'};
@@ -113,18 +114,20 @@ end
 
 function config = fill_defaults(config)
 if nargin == 0 || isempty(config), config = struct(); end
-config = set_default(config,'nTurbines',100);
+config = set_default(config,'nTurbines',[]);
 config = set_default(config,'candidateCount',1200);
 config = set_default(config,'nRuns',5);
 config = set_default(config,'seed',1);
 config = set_default(config,'useCache',true);
 config = set_default(config,'useParallel',false);
-config = set_default(config,'outputDirectory',fullfile(pwd,'results_large_scale'));
+config = set_default(config,'outputDirectory',fullfile(pwd,'results_large_scale_species_v1'));
 if ~isfield(config,'options'), config.options = struct(); end
-config.options = set_default(config.options,'popSize',80);
+config.options = set_default(config.options,'popSize',100);
 config.options = set_default(config.options,'maxFE',10000);
 config.options = set_default(config.options,'archiveSize',100);
 config.options = set_default(config.options,'verbose',true);
+config.options = set_default(config.options,'ccgde3', ...
+    struct('crossRate',0.5));
 end
 
 function s = set_default(s,name,value)

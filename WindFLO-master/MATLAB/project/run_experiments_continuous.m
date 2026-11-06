@@ -28,6 +28,7 @@ end
 
 % 模型和问题模板只构建一次；每次运行只替换缓存对象。
 model = windflo_model(config.scenarioFile,config.nTurbines);
+config.nTurbines = model.nTurbines;
 baseProblem = windflo_prepare_continuous_problem( ...
     model,false,config.repairOptions);
 
@@ -100,6 +101,21 @@ if ~exist(config.outputDirectory,'dir'), mkdir(config.outputDirectory); end
 save(fullfile(config.outputDirectory,'experiment.mat'),'experiment','-v7.3');
 writetable(struct2table(summary),fullfile(config.outputDirectory,'summary.csv'));
 write_json_summary(experiment,fullfile(config.outputDirectory,'summary.json'));
+if isfield(config,'checkpointFE')
+    checkpoints = config.checkpointFE(:);
+    samples = table();
+    for i = 1:numel(records)
+        r = records(i);
+        fe = r.output.history.evaluations;
+        idx = arrayfun(@(budget)find(fe <= budget,1,'last'),checkpoints);
+        n = numel(checkpoints);
+        rows = table(repmat(string(r.algorithm),n,1),repmat(r.seed,n,1), ...
+            checkpoints,fe(idx),r.convergenceHV(idx), ...
+            'VariableNames',{'algorithm','seed','targetFE','actualFE','HV'});
+        samples = [samples; rows];
+    end
+    writetable(samples,fullfile(config.outputDirectory,'hv_checkpoints.csv'));
+end
 disp(struct2table(summary));
 end
 
@@ -153,20 +169,22 @@ end
 function config = fill_defaults(config)
 % FILL_DEFAULTS 为缺省字段补默认值，使函数可以独立调用。
 if nargin == 0 || isempty(config), config = struct(); end
-config = set_default(config,'nTurbines',100);
+config = set_default(config,'nTurbines',[]);
 config = set_default(config,'nRuns',5);
 config = set_default(config,'seed',1);
 config = set_default(config,'useCache',true);
 config = set_default(config,'useParallel',false);
-config = set_default(config,'outputDirectory',fullfile(pwd,'results_continuous'));
+config = set_default(config,'outputDirectory',fullfile(pwd,'results_continuous_species_v1'));
 if ~isfield(config,'repairOptions'), config.repairOptions = struct(); end
 if ~isfield(config,'options'), config.options = struct(); end
-config.options = set_default(config.options,'popSize',80);
+config.options = set_default(config.options,'popSize',100);
 config.options = set_default(config.options,'maxFE',10000);
 config.options = set_default(config.options,'archiveSize',100);
-config.options = set_default(config.options,'numGroups',10);
-config.options = set_default(config.options,'regroupPeriod',10);
+config.options = set_default(config.options,'numGroups',2);
+config.options = set_default(config.options,'regroupPeriod',0);
 config.options = set_default(config.options,'verbose',true);
+config.options = set_default(config.options,'ccgde3', ...
+    struct('crossRate',0.5));
 end
 
 function s = set_default(s,name,value)
