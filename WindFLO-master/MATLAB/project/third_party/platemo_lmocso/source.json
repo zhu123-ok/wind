@@ -1,0 +1,26 @@
+{
+  "repository": "https://github.com/BIMK/PlatEMO",
+  "commit": "e2d58cb4850acf1af5c48dffb669e86e9a89da9e",
+  "files": [
+    {
+      "name": "LMOCSO.m",
+      "url": "https://raw.githubusercontent.com/BIMK/PlatEMO/e2d58cb4850acf1af5c48dffb669e86e9a89da9e/PlatEMO/Algorithms/Multi-objective%20optimization/LMOCSO/LMOCSO.m",
+      "sha256": "89450fa9233086bb3b7deb75621f665730c81853f6809d2efbd51887d703f9c2"
+    },
+    {
+      "name": "Operator.m",
+      "url": "https://raw.githubusercontent.com/BIMK/PlatEMO/e2d58cb4850acf1af5c48dffb669e86e9a89da9e/PlatEMO/Algorithms/Multi-objective%20optimization/LMOCSO/Operator.m",
+      "sha256": "37d3730d19bf7ce826c547a0dafbdfca05194a57e58c6df8cbd9668203d2bed0"
+    },
+    {
+      "name": "EnvironmentalSelection.m",
+      "url": "https://raw.githubusercontent.com/BIMK/PlatEMO/e2d58cb4850acf1af5c48dffb669e86e9a89da9e/PlatEMO/Algorithms/Multi-objective%20optimization/LMOCSO/EnvironmentalSelection.m",
+      "sha256": "5f7ecf21d7ddeb482036b946582dbe9785f34a7bbcb0aa46e76ec831479bfd67"
+    },
+    {
+      "name": "UniformPoint.m",
+      "url": "https://raw.githubusercontent.com/BIMK/PlatEMO/e2d58cb4850acf1af5c48dffb669e86e9a89da9e/PlatEMO/Algorithms/Utility%20functions/UniformPoint.m",
+      "sha256": "e2698d375dbdddcd268c86a15243bf2f8709caa20c2ddf051fce83220a306784"
+    }
+  ]
+}

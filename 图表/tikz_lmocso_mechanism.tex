@@ -1,0 +1,98 @@
+\documentclass[tikz,border=12pt]{standalone}
+\usepackage[UTF8,fontset=windows]{ctex}
+\usepackage{amsmath,amssymb}
+\linespread{1}\selectfont
+\usetikzlibrary{arrows.meta,calc,shapes.geometric}
+\definecolor{ink}{HTML}{263B45}
+\definecolor{accent}{HTML}{286A68}
+\definecolor{muted}{HTML}{AD6652}
+\definecolor{rule}{HTML}{CAD3D5}
+\tikzset{
+ every node/.style={font=\sffamily\fontsize{10}{14}\selectfont,text=ink,align=center},
+ box/.style={rectangle,draw=rule,line width=.65pt,fill=white},
+ flow/.style={rectangle,draw=accent,line width=.8pt,fill={rgb,255:red,244;green,249;blue,248},minimum height=.95cm,align=center},
+ decision/.style={diamond,aspect=2.2,draw=accent,line width=.8pt,fill={rgb,255:red,244;green,249;blue,248},inner sep=3pt,align=center},
+ arr/.style={-{Stealth[length=2.5mm]},draw=accent,line width=1pt},
+ axis/.style={-{Stealth[length=1.7mm]},draw=ink,line width=.7pt},
+ dot/.style={circle,draw=accent,fill=accent!12,minimum size=6pt,inner sep=0pt},
+ chosen/.style={circle,draw=accent,fill=accent,minimum size=6pt,inner sep=0pt},
+ small/.style={font=\sffamily\fontsize{9}{12}\selectfont},
+ heading/.style={font=\sffamily\bfseries\fontsize{13}{17}\selectfont,anchor=west}
+}
+\begin{document}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\foreach \x in {0,7.8,15.6}{
+ \draw[box] (\x,0) rectangle ++(7.2,-7.3);
+ \draw[rule] (\x,-.95)--++(7.2,0);
+}
+\begin{scope}[shift={(0,0)}]
+\node[heading] at (0.32,-0.48) {(a) 随机配对竞争};
+
+\node[flow,minimum width=5.8cm] at (3.6,-1.8) {目标归一化 $\to$ 计算移位密度 SDE};
+\node[small] at (3.6,-2.75) {$s_i=\min_{j\ne i}\|\max(\widehat{\mathbf f}_j,\widehat{\mathbf f}_i)-\widehat{\mathbf f}_i\|_2$};
+\node[dot,minimum size=11pt] (a) at (1.8,-4) {};
+\node[chosen,minimum size=11pt] (b) at (5.2,-4) {};
+\node[small] at (1.8,-3.3) {随机配对粒子 $a$};
+\node[small] at (5.2,-3.3) {随机配对粒子 $b$};
+\draw[arr] (a)--node[small,above] {比较 SDE} (b);
+\node[small] at (1.8,-4.6) {$s_a=0.2$\quad 败者};
+\node[small] at (5.2,-4.6) {$s_b=0.5$\quad 胜者};
+\node[anchor=north west,align=left,text width=6.35cm] at (.4,-5.7)
+ {SDE 数值较大者胜出（示例值）\\竞争决定学习方向，无需全局最优粒子\\每轮重新随机两两配对};
+\end{scope}
+\begin{scope}[shift={(7.8,0)}]
+\node[heading] at (0.32,-0.48) {(b) 败者学习与变异};
+
+\node[dot] (l) at (1.5,-2.9) {};
+\node[chosen] (w) at (5.8,-1.7) {};
+\node[dot] (lp) at (3.65,-2.3) {};
+\draw[arr,dashed] (l)--(w);
+\draw[arr,line width=1.8pt] (l)--(lp);
+\node[small,anchor=north] at (1.5,-3.05) {败者 $\mathbf x_l$};
+\node[small,anchor=south] at (5.8,-1.55) {胜者 $\mathbf x_w$};
+\node[small,anchor=south] at (3.65,-2.15) {$\mathbf x_l'$};
+\node[small] at (3.6,-3.9) {$\mathbf v_l'=r_1\mathbf v_l+r_2(\mathbf x_w-\mathbf x_l)$};
+\node[small] at (3.6,-4.65) {$\mathbf x_l'=\mathbf x_l+\mathbf v_l'+r_1(\mathbf v_l'-\mathbf v_l)$};
+\node[anchor=north west,align=left,text width=6.35cm] at (.4,-5.55)
+ {败者更新位置与速度，胜者先保留状态\\随后双方都执行多项式变异，再评价\\$r_1,r_2$ 是每对粒子各维共享的随机数};
+\end{scope}
+\begin{scope}[shift={(15.6,0)}]
+\node[heading] at (0.32,-0.48) {(c) 参考向量环境选择};
+
+\coordinate (o) at (1,-4.6);
+\draw[axis] (o)--(6.4,-4.6) node[right,small] {$f_1$};
+\draw[axis] (o)--(1,-1.4) node[above,small] {$f_2$};
+\foreach \x/\y in {5.7/-3.8,4.8/-2.7,2.7/-1.55}{\draw[arr,draw=rule] (o)--(\x,\y);}
+\node[dot] at (4.5,-4.3) {};
+\node[chosen] at (3.5,-4.17) {};
+\node[dot] at (3.25,-3.75) {};
+\node[chosen] at (2.9,-3.52) {};
+\node[chosen] at (2.15,-2.45) {};
+\node[small,anchor=west] at (3.35,-1.55) {二维投影示意};
+\node[small] at (3.6,-5.2) {$\mathrm{APD}_{ik}=\left(1+3\tau\frac{\phi_{ik}}{\gamma_k}\right)\|\mathbf f_i-\mathbf z^*\|_2$};
+\node[anchor=north west,align=left,text width=6.35cm] at (.4,-5.8)
+ {先取非支配第一层，再关联最近参考方向\\各占用方向保留 APD 最小者（实心点）\\$\tau=(\mathrm{FE}/B)^2$；种群规模可变化};
+\end{scope}
+\node[small,anchor=west] at (0,-7.85) {共同评价：解码 $\to$ 场界投影 $\to$ 成对排斥 $\to$ 必要时网格兜底 $\to$ 三目标计算};
+\draw[rule] (0,-8.3)--(22.8,-8.3);
+\node[flow,minimum width=2.8cm] (s0) at (1.4,-9.45) {参考向量与初始化\\零速度、评价筛选};
+\node[flow,minimum width=2.8cm] (s1) at (5.3,-9.45) {SDE 竞争与学习\\双方多项式变异};
+\draw[arr] (s0)--(s1);
+\node[flow,minimum width=2.8cm] (s2) at (9.3,-9.45) {修复与评价\\子代布局};
+\draw[arr] (s1)--(s2);
+\node[flow,minimum width=2.8cm] (s3) at (13.3,-9.45) {父子合并取第一层\\按参考向量选优};
+\draw[arr] (s2)--(s3);
+\node[flow,minimum width=2.8cm] (s4) at (17.2,-9.45) {更新非支配档案\\记录搜索历史};
+\draw[arr] (s3)--(s4);
+\node[decision,small,minimum width=2.8cm] (s5) at (21.2,-9.45) {$\mathrm{FE}<B$？};
+\draw[arr] (s4)--(s5);
+\draw[arr,dashed] (s5.south)--(21.2,-10.8)--(5.3,-10.8)--(s1.south);
+\node[small,fill=white,inner sep=2pt] at (12.7,-10.8) {是：继续进化（编码／粒子状态随种群保留）};
+\node[flow,minimum width=3.7cm] (result) at (20.1,-12.2) {Pareto 档案\\及折中布局};
+\draw[arr] (s5.east)--(23.15,-9.45)--(23.15,-12.2)--(result.east);
+\node[small,fill=white,inner sep=2pt] at (23.15,-11.3) {否};
+\node[small,anchor=west] at (0,-11.6) {$D=2N_{\mathrm{wt}}$，坐标编码位于 $[0,1]^D$；全部风机可参与修复，场内无禁区。};
+\node[small,anchor=west] at (0,-12.2) {$\min\mathbf f=[-\mathrm{AEP},\mathrm{LCOE},\mathrm{CVaR}_{95}]$；$B$ 为评价预算；档案不参与生成子代。};
+\node[small,anchor=west] at (0,-12.85) {参考向量固定；修复坐标不回写编码或速度；APD 图为三目标选择的二维投影，非实验数据。};
+\end{tikzpicture}
+\end{document}

@@ -1,5 +1,9 @@
 # WindFLO 大规模三目标 MATLAB 项目
 
+新增 LMOCSO：通过 `run_algorithm('LMOCSO',problem,options)` 调用；
+`main_lmocso(config)` 可运行连续布局对比。实现与参数说明见项目根目录的
+`LMOCSO实现说明.md`，短功能检查入口为 `test_lmocso`。
+
 ## 1. 问题定义
 
 程序从 `M` 个候选点中选择恰好 `N` 个风机位置，统一最小化：

@@ -31,7 +31,11 @@ model = windflo_model(config.scenarioFile,config.nTurbines);
 baseProblem = windflo_prepare_continuous_problem( ...
     model,false,config.repairOptions);
 
-algorithms = {'CCGDE3','NSGA2'};
+algorithms = config.algorithms;
+if isstring(algorithms), algorithms=cellstr(algorithms); end
+if ischar(algorithms), algorithms={algorithms}; end
+assert(iscellstr(algorithms) && ~isempty(algorithms), ...
+    'config.algorithms must contain algorithm names.');
 % 每次运行的记录模板；output 保存算法返回的完整结构（档案、历史等）。
 recordTemplate = struct('algorithm','','run',0,'seed',0,'timeSeconds',0, ...
     'output',[],'HV',nan,'IGD',nan,'Spacing',nan,'convergenceHV',[]);
@@ -154,6 +158,7 @@ function config = fill_defaults(config)
 % FILL_DEFAULTS 为缺省字段补默认值，使函数可以独立调用。
 if nargin == 0 || isempty(config), config = struct(); end
 config = set_default(config,'nTurbines',100);
+config = set_default(config,'algorithms',{'CCGDE3','NSGA2'});
 config = set_default(config,'nRuns',5);
 config = set_default(config,'seed',1);
 config = set_default(config,'useCache',true);
