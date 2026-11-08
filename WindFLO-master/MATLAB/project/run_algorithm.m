@@ -4,7 +4,7 @@ function result = run_algorithm(name, problem, varargin)
 % 推荐接口：run_algorithm(name, problem, options)
 % 兼容接口：run_algorithm(name, model, candidates, options)
 %
-% 按算法名称分派到 CCGDE3 或 NSGA2，使实验脚本不必关心具体实现。
+% 按算法名称分派到 CCGDE3、NSGA2 或 LMOCSO，使实验脚本不必关心具体实现。
 
 if nargin >= 4
     % 旧接口：第二个参数是 model，第三个是候选点集合。
@@ -22,7 +22,14 @@ switch lower(name)
         result = CCGDE3(problem,options);
     case {'nsga2', 'nsga-ii'}
         result = NSGA2(problem,options);
+    case {'lmocso','lmo-cso'}
+        if isfield(options,'lmocso')
+            overrides=options.lmocso;
+            names=fieldnames(overrides);
+            for i=1:numel(names), options.(names{i})=overrides.(names{i}); end
+        end
+        result = LMOCSO(problem,options);
     otherwise
-        error('未知算法：%s。可用算法为 CCGDE3 或 NSGA2。',name);
+        error('未知算法：%s。可用算法为 CCGDE3、NSGA2 或 LMOCSO。',name);
 end
 end
